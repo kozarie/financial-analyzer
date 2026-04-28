@@ -1,0 +1,38 @@
+{
+  "version": "0.1.0",
+  "id": "77ef9910-0a5a-42a8-bb7b-5c12a144c40f",
+  "timestamp": "2026-04-28T16:59:03.504Z",
+  "files": [
+    {
+      "path": "agents/pdf_extractor.py",
+      "conversations": [
+        {
+          "contributor_type": "ai",
+          "model": "anthropic/claude-opus-4-5-20251101",
+          "ranges": [
+            {
+              "start_line": 1,
+              "end_line": -1
+            }
+          ],
+          "description": "Edit: text replacement"
+        }
+      ]
+    }
+  ],
+  "tool": {
+    "name": "taisun-agent",
+    "version": "2.10.1"
+  },
+  "metadata": {
+    "dev.taisun": {
+      "hook": "agent-trace-capture",
+      "tool_used": "Edit"
+    }
+  },
+  "vcs": {
+    "type": "git",
+    "commit": "6a67dc8dfe1be2ec08c2d566d29fd2f0c6b79489",
+    "branch": "main"
+  }
+}

@@ -13,6 +13,7 @@ PDFに明記されていない数値は必ず null にしてください。推�
 
 EXTRACTION_PROMPT = """以下のPDFは企業の決算書です。財務数値を抽出し、以下のJSONを完成させてください。
 重要: PDFに明記されていない数値は必ず null にしてください。推測・推定は禁止です。数値の単位が不明な場合も null にしてください。会計期間・企業名は必ずPDFから抜き出し、不明なら'不明'としてください。
+厳守: 提供されたテキストに数値が存在しない場合、または抽出テキストが空・極端に短い場合は、全ての数値フィールドを null にしてください。「それらしい数値」を想像・推測して埋めることは絶対に禁止です。
 
 ```json
 {
@@ -118,9 +119,37 @@ async def extract_pdf(pdf_bytes: bytes) -> dict:
         except Exception:
             raw_text = ""
 
+    text_length = len(raw_text) if raw_text else 0
+
+    # スキャンPDF（画像PDF）検出: テキストが100文字未満は解析不能と判定
+    if text_length < 100:
+        return {
+            "company_name": "不明",
+            "fiscal_year": "不明",
+            "bs": {}, "pl": {}, "cf": {}, "notes": {},
+            "_error": (
+                "スキャンPDF（画像PDF）のためテキスト抽出に失敗しました。"
+                "テキスト形式のPDFをご使用ください。"
+                f"（抽出文字数: {text_length}文字）"
+            ),
+        }
+
     # テキストが取れた場合はテキスト+プロンプトで呼ぶ（トークン節約）
-    if raw_text and len(raw_text) > 100:
-        prompt = f"{EXTRACTION_PROMPT}\n\n--- 抽出テキスト ---\n{raw_text[:30000]}"
+    # 500文字未満はスキャンPDFの可能性が高く精度低下を警告
+    low_quality = text_length < 500
+
+    if raw_text and text_length > 100:
+        scan_warning = (
+            "\n\n注意: 提供されたテキストは非常に短いです（{} 文字）。"
+            "スキャンPDFの可能性があります。"
+            "数値が確認できない場合は全フィールドを null にしてください。"
+            "絶対に推測で数値を埋めないでください。".format(text_length)
+            if low_quality else ""
+        )
+        prompt = (
+            f"{EXTRACTION_PROMPT}{scan_warning}"
+            f"\n\n--- 抽出テキスト ---\n{raw_text[:30000]}"
+        )
         response = await call_claude(prompt, system=SYSTEM_PROMPT, max_tokens=4096)
     else:
         # PDFバイナリを直接送る
@@ -141,6 +170,13 @@ async def extract_pdf(pdf_bytes: bytes) -> dict:
             "bs": {}, "pl": {}, "cf": {}, "notes": {},
             "_parse_error": response[:500],
         }
+
+    # テキスト品質が低い場合は警告フラグを付与
+    if low_quality:
+        data["_warning"] = (
+            f"スキャンPDFの可能性があります（抽出文字数: {text_length}文字）。"
+            "数値の精度が低下している恐れがあります。PDFの各数値を必ず手動で確認してください。"
+        )
 
     return data
 

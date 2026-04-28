@@ -90,6 +90,20 @@ if analyze_btn and uploaded_file is not None:
                 extracted = await extract_pdf(pdf_bytes)
                 company = extracted.get("company_name", "不明")
                 st.write(f"   ✅ 企業名: {company} / 対象期間: {extracted.get('fiscal_year', '不明')}")
+
+                # スキャンPDF等でテキスト抽出不能の場合はエラー表示して中止
+                if "_error" in extracted:
+                    st.error(f"PDF解析失敗: {extracted['_error']}")
+                    status.update(label="❌ PDF解析に失敗しました", state="error")
+                    return ""
+
+                # テキスト品質低下（スキャンPDF疑い）の警告表示
+                if "_warning" in extracted:
+                    st.warning(
+                        f"注意: {extracted['_warning']}\n\n"
+                        "出力された数値は必ず元のPDFと照合してください。"
+                    )
+
             except Exception as e:
                 st.error(f"PDF解析エラー: {e}")
                 extracted = {

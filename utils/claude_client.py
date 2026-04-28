@@ -85,11 +85,18 @@ def _run_claude_cli(prompt: str) -> str:
         ["claude", "-p", prompt],
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=180,
     )
     if proc.returncode != 0:
         raise RuntimeError(f"claude CLI エラー: {proc.stderr[:300]}")
-    return proc.stdout.strip()
+    raw = proc.stdout.strip()
+    # CLIの出力にヘッダー・免責事項・説明文が混入する場合があるため
+    # JSONオブジェクト部分のみを正規表現で抽出する
+    import re
+    match = re.search(r'\{.*\}', raw, re.DOTALL)
+    if match:
+        return match.group(0)
+    return raw
 
 
 async def call_claude_text(
