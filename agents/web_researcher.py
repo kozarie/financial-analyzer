@@ -115,28 +115,8 @@ def _web_search(query: str, max_results: int = 5) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 async def _estimate_industry_avg(company_name: str, industry: str) -> dict:
-    prompt = f"""
-{company_name}（業種: {industry}）の業界平均財務指標を推定してください。
-日本の上場企業の一般的な水準で構いません。
-
-以下のJSONで回答してください：
-{{
-  "industry": "{industry}",
-  "avg_operating_margin": null,
-  "avg_roe": null,
-  "avg_equity_ratio": null,
-  "avg_revenue_growth": null,
-  "avg_current_ratio": null,
-  "note": "推定根拠の一言メモ"
-}}
-JSONのみ返答してください。"""
-    response = await call_claude_text(prompt, max_tokens=512)
-    try:
-        import re
-        text = re.sub(r"```(?:json)?", "", response).strip()
-        return json.loads(text)
-    except Exception:
-        return {"industry": industry, "note": "推定失敗"}
+    # 推定・推測はしない。業界平均は参考情報として空で返す。
+    return {"industry": industry, "note": "業界平均データなし（非上場企業のため参照データなし）"}
 
 
 # ---------------------------------------------------------------------------
@@ -185,10 +165,12 @@ async def research_company(extracted_data: dict) -> dict:
 
 
 def _gather_news(company_name: str) -> list[dict]:
-    results = _web_search(f"{company_name} 最新ニュース 決算", max_results=5)
-    if len(results) < 3:
-        results += _web_search(f"{company_name} 業績 2024", max_results=3)
-    return results[:6]
+    if company_name in ("不明", "", "None"):
+        return []
+    results = _web_search(f'"{company_name}" 決算 業績', max_results=5)
+    # 会社名が含まれる結果のみ採用（別会社のデータ混入防止）
+    filtered = [r for r in results if company_name[:4] in r.get("title", "") or company_name[:4] in r.get("snippet", "")]
+    return filtered[:4]
 
 
 def _gather_competitors(company_name: str, industry: str) -> list[dict]:
