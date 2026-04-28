@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>任天堂株式会社 財務分析レポート</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #1a3c6e;
+    --accent: #e84a2f;
+    --good: #27ae60;
+    --warning: #f39c12;
+    --danger: #c0392b;
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --border: #dde3ec;
+    --text: #2c3e50;
+    --muted: #7f8c8d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Noto Sans JP", "Hiragino Sans", sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+
+  /* ヘッダー */
+  .report-header {
+    background: linear-gradient(135deg, var(--primary) 0%, #2d6abf 100%);
+    color: white; padding: 40px 60px;
+  }
+  .report-header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+  .report-header .meta { font-size: 0.9rem; opacity: 0.85; display: flex; gap: 24px; flex-wrap: wrap; }
+  .report-header .meta span { display: flex; align-items: center; gap: 6px; }
+
+  /* コンテナ */
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+
+  /* カード */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 28px; margin-bottom: 24px; }
+  .card-title { font-size: 1.1rem; font-weight: 700; color: var(--primary); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid var(--primary); display: flex; align-items: center; gap: 8px; }
+
+  /* リスクスコア */
+  .risk-score-block { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
+  .score-circle { width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+  .score-circle .num { font-size: 2.4rem; line-height: 1; }
+  .score-circle .label { font-size: 0.75rem; margin-top: 4px; opacity: 0.9; }
+  .score-low { background: #e8f8f0; color: var(--good); border: 3px solid var(--good); }
+  .score-medium { background: #fef9e7; color: var(--warning); border: 3px solid var(--warning); }
+  .score-high { background: #fdf2f2; color: var(--danger); border: 3px solid var(--danger); }
+  .score-critical { background: #2c0000; color: #ff6b6b; border: 3px solid #ff6b6b; }
+
+  /* リスクバッジ */
+  .risk-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; }
+  .badge-low { background: #e8f8f0; color: var(--good); }
+  .badge-medium { background: #fef9e7; color: var(--warning); }
+  .badge-high { background: #fdf2f2; color: var(--danger); }
+  .badge-critical { background: #2c0000; color: #ff6b6b; }
+
+  /* 指標テーブル */
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+  .metric-item { background: var(--bg); border-radius: 8px; padding: 16px; border-left: 4px solid var(--border); }
+  .metric-item.good { border-color: var(--good); }
+  .metric-item.warning { border-color: var(--warning); }
+  .metric-item.danger { border-color: var(--danger); }
+  .metric-item .m-name { font-size: 0.78rem; color: var(--muted); margin-bottom: 4px; }
+  .metric-item .m-value { font-size: 1.4rem; font-weight: 700; }
+  .metric-item .m-avg { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .metric-null { color: var(--muted) !important; font-size: 1rem !important; }
+
+  /* リスク一覧 */
+  .risk-list { display: flex; flex-direction: column; gap: 12px; }
+  .risk-item { border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; gap: 16px; }
+  .risk-item .sev { width: 6px; border-radius: 3px; flex-shrink: 0; }
+  .sev-high { background: var(--danger); }
+  .sev-medium { background: var(--warning); }
+  .sev-low { background: var(--good); }
+  .risk-item .body .category { font-size: 0.75rem; color: var(--muted); margin-bottom: 2px; }
+  .risk-item .body .title { font-weight: 700; margin-bottom: 4px; }
+  .risk-item .body .desc { font-size: 0.88rem; color: var(--text); }
+
+  /* 推奨事項 */
+  .rec-list { counter-reset: rec; display: flex; flex-direction: column; gap: 12px; }
+  .rec-item { display: flex; gap: 16px; align-items: flex-start; background: #f0f4ff; border-radius: 8px; padding: 14px 16px; }
+  .rec-num { width: 28px; height: 28px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+  .rec-body .action { font-weight: 700; margin-bottom: 4px; }
+  .rec-body .reason { font-size: 0.85rem; color: var(--muted); }
+
+  /* 分析テキスト */
+  .analysis-section { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 768px) { .analysis-section { grid-template-columns: 1fr; } }
+  .sw-box { background: var(--bg); border-radius: 8px; padding: 16px; }
+  .sw-box h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 10px; }
+  .sw-box ul { padding-left: 18px; }
+  .sw-box ul li { font-size: 0.88rem; margin-bottom: 6px; }
+  .sw-box.strengths h4 { color: var(--good); }
+  .sw-box.weaknesses h4 { color: var(--danger); }
+
+  /* ニュース */
+  .news-list { display: flex; flex-direction: column; gap: 10px; }
+  .news-item { border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; }
+  .news-item a { color: var(--primary); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+  .news-item a:hover { text-decoration: underline; }
+  .news-item .snippet { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+
+  /* グラフ */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } }
+  .chart-wrap { background: var(--bg); border-radius: 8px; padding: 16px; }
+  .chart-wrap h4 { font-size: 0.88rem; font-weight: 700; margin-bottom: 12px; color: var(--muted); }
+
+  /* フッター */
+  .report-footer { background: var(--primary); color: rgba(255,255,255,0.7); text-align: center; padding: 24px; font-size: 0.8rem; margin-top: 40px; }
+
+  /* セクション見出し */
+  .section-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 12px; }
+
+  .positive-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .positive-tag { background: #e8f8f0; color: var(--good); padding: 4px 12px; border-radius: 20px; font-size: 0.82rem; }
+
+  /* ===== スマートフォン対応 (max-width: 768px) ===== */
+  @media (max-width: 768px) {
+    .report-header { padding: 20px 16px; }
+    .report-header h1 { font-size: 1.4rem; }
+    .container { padding: 16px 12px; }
+    .metrics-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    .risk-score-block { flex-direction: column; gap: 16px; }
+    .score-circle { width: 90px; height: 90px; }
+    .score-circle .num { font-size: 1.8rem; }
+    .chart-grid { grid-template-columns: 1fr; }
+    .analysis-section { grid-template-columns: 1fr; }
+    .card { padding: 16px; }
+    .card-title { font-size: 1rem; }
+    .rec-item { flex-direction: column; gap: 8px; }
+    .risk-item { flex-wrap: wrap; }
+    .metrics-grid { overflow-x: auto; }
+    .chart-wrap { overflow-x: auto; }
+    table { overflow-x: auto; display: block; }
+  }
+
+  /* ===== 小型スマートフォン対応 (max-width: 480px) ===== */
+  @media (max-width: 480px) {
+    body { font-size: 14px; }
+    .report-header h1 { font-size: 1.2rem; }
+    .report-header .meta { gap: 10px; font-size: 0.8rem; }
+    .metrics-grid { grid-template-columns: 1fr 1fr; }
+    .score-circle .num { font-size: 1.6rem; }
+    .card { padding: 12px; margin-bottom: 16px; }
+    .rec-num { width: 24px; height: 24px; font-size: 0.78rem; }
+    .risk-item { padding: 12px; }
+    .news-item { padding: 10px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ヘッダー -->
+<div class="report-header">
+  <h1>任天堂株式会社 財務分析レポート</h1>
+  <div class="meta">
+    <span>📅 対象期間: 2026年3月期第2四半期（中間期）</span>
+    <span>🏭 業種: ゲーム・エンターテインメント</span>
+    <span>📄 生成日: 2026年04月29日 01:37</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- エグゼクティブサマリー -->
+  <div class="card">
+    <div class="card-title">🎯 エグゼクティブサマリー</div>
+    <div class="risk-score-block">
+      <div class="score-circle score-medium">
+        <span class="num">75</span>
+        <span class="label">/ 100点</span>
+      </div>
+      <div>
+        <div style="margin-bottom:10px;">
+          総合リスク評価:
+          <span class="risk-badge badge-medium">中リスク</span>
+        </div>
+        <p style="max-width:600px;">任天堂は自己資本比率77.5%・現金1.7兆円超・無借金と財務安全性は際立って高い。粗利36%・経常利益率21%と高収益体質だが、Switch後継機サイクル依存・ROE低水準・成長率データ不在・CF未開示が中期リスクとして残る。財務基盤は堅牢ながら資本効率と成長持続性に注視が必要。</p>
+        
+        <div class="positive-tags">
+          
+          <span class="positive-tag">✓ 無借金経営・現金1.7兆円超の圧倒的財務安全性（自己資本比率77.5%は業界平均40%の約2倍）</span>
+          
+          <span class="positive-tag">✓ 粗利益率36.2%・経常利益率21.5%という業界平均を大幅に上回るIP主導型高収益ビジネスモデル</span>
+          
+          <span class="positive-tag">✓ マリオ・ゼルダ・ポケモン等の世代を超えた強固なIPポートフォリオによる参入障壁の高さ</span>
+          
+          <span class="positive-tag">✓ 流動比率400%近く・当座比率255%の極めて高い短期支払能力と経営危機耐性</span>
+          
+          <span class="positive-tag">✓ ROA5.47%は業界平均4%を上回り、保有資産の収益活用効率は相対的に健全</span>
+          
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- 財務指標 -->
+  <div class="card">
+    <div class="card-title">📊 財務指標一覧</div>
+
+    
+    <div class="section-label" style="margin-top:0;">
+      収益性
+    </div>
+    <div class="metrics-grid" style="margin-bottom:8px;">
+      
+      <div class="metric-item good">
+        <div class="m-name">売上高総利益率</div>
+        
+        <div class="m-value">36.24<span style="font-size:0.8rem;font-weight:400;"> %</span></div>
+        
+        
+        <div class="m-avg">業界平均: 25.0%</div>
+        
+      </div>
+      
+      <div class="metric-item good">
+        <div class="m-name">営業利益率</div>
+        
+        <div class="m-value">13.2<span style="font-size:0.8rem;font-weight:400;"> %</span></div>
+        
+        
+        <div class="m-avg">業界平均: 7.0%</div>
+        
+      </div>
+      
+      <div class="metric-item good">
+        <div class="m-name">経常利益率</div>
+        
+        <div class="m-value">21.47<span style="font-size:0.8rem;font-weight:400;"> %</span></div>
+        
+        
+        <div class="m-avg">業界平均: 6.0%</div>
+        
+      </div>
+      
+      <div class="metric-item unknown">
+        <div class="m-name">EBITDA率</div>
+        
+        <div class="m-value metric-null">— データなし</div>
+        
+        
+        <div class="m-avg">業界平均: 12.0%</div>
+        
+      </div>
+      
+      <div class="metric-item warning">
+        <div class="m-name">ROE</div>
+        
+        <div class="m-value">7.06<span style="font-size:0.8rem;font-weight:400;"> %</span></div>
+        
+        
+        <div class="m-avg">業界平均: 8.0%</div>
+        
+      </div>
+      
+      <div class="metric-item good">
+        <div class="m-name">ROA</div>
+        
+        <div class="m-value">5.47<span style="font-size:0.8rem;font-weight:400;"> %</span></div>
+        
+        
+        <div class="m-avg">業界平均: 4.0%</div>
+        
+      </div>
+      
+      <div class="metric-item unknown">
+        <div class="m-name">ROIC</div>
+        
+        <div class="m-value metric-null">— データなし</div>
+        
+        
+        <div class="m-avg">業界平均: 6.0%</div>
+        
+      </div>
+      
+    </div>
+    
+    <div class="section-label" style="margin-top:20px;">
+      安全性
+    </div>
+    <div class="metrics-grid" style="margin-bottom:8px;">
+      
+      <div class="metric-item good">
+        <div class="m-name">自己資本比率</div>
+        
+        <div class="m-value">77.51<span style="font-size:0.8rem;font-weight:400;"> %</span></div>
+        
+        
+        <div class="m-avg">業界平均: 40.0%</div>
+        
+      </div>
+      
+      <div class="metric-item good">
+        <div class="m-name">流動比率</div>
+        
+        <div class="m-value">399.79<span style="font-size:0.8rem;font-weight:400;"> %</span></div>
+        
+        
+        <div class="m-avg">業界平均: 150.0%</div>
+        
+      </div>
+      
+      <div class="metric-item good">
+        <div class="m-name">当座比率</div>
+        
+        <div class="m-value">255.18<span style="font-size:0.8rem;font-weight:400;"> %</span></div>
+        
+        
+        <div class="m-avg">業界平均: 100.0%</div>
+        
+      </div>
+      
+      <div class="metric-item unknown">
+        <div class="m-name">D/Eレシオ</div>
+        
+        <div class="m-value metric-null">— データなし</div>
+        
+        
+        <div class="m-avg">業界平均: 1.0倍</div>
+        
+      </div>
+      
+      <div class="metric-item unknown">
+        <div class="m-name">ICR（利息カバレッジ比率）</div>
+        
+        <div class="m-value metric-null">— データなし</div>
+        
+        
+        <div class="m-avg">業界平均: 10.0倍</div>
+        
+      </div>
+      
+      <div class="metric-item warning">
+        <div class="m-name">Altman Z-Score</div>
+        
+        <div class="m-value">2.255</div>
+        
+        
+        <div class="m-avg">業界平均: 3.0</div>
+        
+      </div>
+      
+    </div>
+    
+    <div class="section-label" style="margin-top:20px;">
+      成長性
+    </div>
+    <div class="metrics-grid" style="margin-bottom:8px;">
+      
+      <div class="metric-item unknown">
+        <div class="m-name">売上高成長率YoY</div>
+        
+        <div class="m-value metric-null">— データなし</div>
+        
+        
+        <div class="m-avg">業界平均: 3.0%</div>
+        
+      </div>
+      
+      <div class="metric-item unknown">
+        <div class="m-name">営業利益成長率YoY</div>
+        
+        <div class="m-value metric-null">— データなし</div>
+        
+        
+        <div class="m-avg">業界平均: 3.0%</div>
+        
+      </div>
+      
+      <div class="metric-item unknown">
+        <div class="m-name">EPS成長率</div>
+        
+        <div class="m-value metric-null">— データなし</div>
+        
+        
+        <div class="m-avg">業界平均: 5.0%</div>
+        
+      </div>
+      
+      <div class="metric-item unknown">
+        <div class="m-name">売上高CAGR（3年）</div>
+        
+        <div class="m-value metric-null">— データなし</div>
+        
+        
+        <div class="m-avg">業界平均: 3.0%</div>
+        
+      </div>
+      
+    </div>
+    
+    <div class="section-label" style="margin-top:20px;">
+      効率性
+    </div>
+    <div class="metrics-grid" style="margin-bottom:8px;">
+      
+      <div class="metric-item danger">
+        <div class="m-name">総資産回転率</div>
+        
+        <div class="m-value">0.3024<span style="font-size:0.8rem;font-weight:400;"> 回</span></div>
+        
+        
+        <div class="m-avg">業界平均: 0.8回</div>
+        
+      </div>
+      
+      <div class="metric-item danger">
+        <div class="m-name">棚卸資産回転日数</div>
+        
+        <div class="m-value">256.5<span style="font-size:0.8rem;font-weight:400;"> 日</span></div>
+        
+        
+        <div class="m-avg">業界平均: 60.0日</div>
+        
+      </div>
+      
+      <div class="metric-item warning">
+        <div class="m-name">売掛金回転日数</div>
+        
+        <div class="m-value">57.9<span style="font-size:0.8rem;font-weight:400;"> 日</span></div>
+        
+        
+        <div class="m-avg">業界平均: 60.0日</div>
+        
+      </div>
+      
+      <div class="metric-item unknown">
+        <div class="m-name">人件費率</div>
+        
+        <div class="m-value metric-null">— データなし</div>
+        
+        
+        <div class="m-avg">業界平均: 20.0%</div>
+        
+      </div>
+      
+    </div>
+    
+    <div class="section-label" style="margin-top:20px;">
+      キャッシュフロー
+    </div>
+    <div class="metrics-grid" style="margin-bottom:8px;">
+      
+      <div class="metric-item unknown">
+        <div class="m-name">営業CF/売上高率</div>
+        
+        <div class="m-value metric-null">— データなし</div>
+        
+        
+        <div class="m-avg">業界平均: 8.0%</div>
+        
+      </div>
+      
+      <div class="metric-item unknown">
+        <div class="m-name">FCF（フリーキャッシュフロー）</div>
+        
+        <div class="m-value metric-null">— データなし</div>
+        
+        
+      </div>
+      
+      <div class="metric-item unknown">
+        <div class="m-name">CF充当率</div>
+        
+        <div class="m-value metric-null">— データなし</div>
+        
+        
+        <div class="m-avg">業界平均: 20.0%</div>
+        
+      </div>
+      
+      <div class="metric-item unknown">
+        <div class="m-name">配当性向</div>
+        
+        <div class="m-value metric-null">— データなし</div>
+        
+        
+        <div class="m-avg">業界平均: 30.0%</div>
+        
+      </div>
+      
+    </div>
+    
+    <div class="section-label" style="margin-top:20px;">
+      総合（Piotroski）
+    </div>
+    <div class="metrics-grid" style="margin-bottom:8px;">
+      
+      <div class="metric-item warning">
+        <div class="m-name">Piotroski F-Score</div>
+        
+        <div class="m-value">5<span style="font-size:0.8rem;font-weight:400;"> /9</span></div>
+        
+        
+        <div class="m-avg">業界平均: 5/9</div>
+        
+      </div>
+      
+    </div>
+    
+  </div>
+
+  <!-- グラフ -->
+  <div class="card">
+    <div class="card-title">📈 財務チャート</div>
+    <div class="chart-grid">
+      <div class="chart-wrap">
+        <h4>収益性指標</h4>
+        <canvas id="chartProfitability"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <h4>安全性指標</h4>
+        <canvas id="chartSafety"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- BS/PL/CF 分析 -->
+  
+  <div class="card">
+    <div class="card-title">📋 貸借対照表（BS）分析</div>
+    <p style="margin-bottom:16px;">任天堂は極めて強固な財務基盤を持つ優良企業である。自己資本比率77.5%・流動比率400%近くと、ゲーム業界水準を大きく上回る安全性を誇る。無借金経営（有利子負債ゼロ）かつ現金・現金同等物が1.7兆円超と、リスク耐性は際立って高い。利益蓄積型の内部留保経営が財務構造の根幹をなしており、投資家・経営者双方にとって信頼性の高いバランスシートといえる。</p>
+    <p style="font-size:0.9rem; margin-bottom:20px; color:var(--muted);">【資産構成】総資産3.6兆円のうち流動資産が81.1%（約2.95兆円）を占め、非常に流動性の高い資産構成となっている。なかでも現金・預金が1.71兆円（総資産比47.0%）と圧倒的なキャッシュリッチ体制を維持。棚卸資産も約4,927億円あるが、流動資産全体に占める割合は16.7%にとどまり、過剰在庫リスクは限定的である。売上債権174億円は小さく、販売チャネルの健全性を示唆する。非流動資産685億円は総資産の18.9%であり、製造業と比較してファブレス型に近い軽量な有形固定資産構造が読み取れる。【負債構造】総負債817億円のうち流動負債738億円が大半を占め、固定負債はわずかである。注目すべきは有利子負債がゼロである点で、財務費用負担が一切なく、金利上昇リスクから完全に免疫されている。負債の大部分は買掛金・引当金等の営業性負債と推察され、財務レバレッジによる収益増幅を意図的に排除した保守的な経営方針が明確に現れている。【自己資本】株主資本2.82兆円のうち利益剰余金が2.83兆円と、設立以来の蓄積利益が自己資本をほぼ全額構成している。これはヒット商品の利益を着実に内部留保してきた結果であり、長期的な収益力の証左である。ワーキングキャピタル2.21兆円は短期的な支払能力に余裕があることを示し、事業継続リスクはきわめて低い。Altman Z-Scoreが2.255と「グレーゾーン」判定となっているが、これは無借金・高自己資本という特殊構造がモデルの係数と相性が悪いためであり、実質的な倒産リスクはほぼ皆無と判断される。</p>
+    
+    <p style="font-size:0.88rem; background:#f0f4ff; padding:12px; border-radius:8px; margin-bottom:20px;">
+      💡 自己資本比率77.5%は業界平均40%の約2倍であり、財務安定性は最上位クラス。流動比率399.8%は150%の業界平均を大幅に上回り、短期債務の返済能力に全く懸念がない。D/Eレシオはゼロ（無借金）で理論上最良値であり、財務レバレッジリスクは存在しない。一方、借入を活用しないため財務レバレッジによるROE向上余地は自ら放棄している点は、資本効率の観点から議論の余地がある。
+    </p>
+    
+    <div class="analysis-section">
+      <div class="sw-box strengths">
+        <h4>✅ 強み</h4>
+        <ul><li>無借金経営（有利子負債ゼロ）による金利・信用リスクの完全排除</li><li>現金・預金1.71兆円を背景とした圧倒的な資金余力と戦略的M&amp;A・R&amp;D投資余地</li><li>自己資本比率77.5%・流動比率400%と業界平均の2倍超に達する二重の安全マージン</li></ul>
+      </div>
+      <div class="sw-box weaknesses">
+        <h4>⚠️ 課題</h4>
+        <ul><li>過剰な現金保有（総資産の47%）は資本効率（ROE・ROA）を押し下げる要因となり、株主還元や成長投資への積極活用が課題</li><li>Altman Z-Scoreがモデル上「グレーゾーン」表示となる構造的問題があり、画一的スクリーニングツールによる誤評価リスクに注意が必要</li></ul>
+      </div>
+    </div>
+    
+  </div>
+  
+  <div class="card">
+    <div class="card-title">📋 損益計算書（PL）分析</div>
+    <p style="margin-bottom:16px;">任天堂は売上高1兆995億円、営業利益率13.2%・経常利益率21.5%と業界平均を大幅に上回る高収益体質を誇る。粗利益率36.2%はゲームソフト・IP(知的財産)中心のビジネスモデルの強さを示している。一方、前期比成長率データが不在のため成長トレンドの定量評価は制約されるが、Switch後継機サイクルの動向が今後の最重要変数となる。ROEが業界平均をやや下回る点は、潤沢な内部留保の活用効率という構造的課題を示唆する。</p>
+    <p style="font-size:0.9rem; margin-bottom:20px; color:var(--muted);">【売上構造】売上高1兆995億円のうち売上原価が7,011億円（原価率63.8%）、粗利益3,985億円（粗利益率36.2%）。ゲーム機ハードは薄利ながら、ソフトウェア・DLC・Nintendo Switch Onlineなどの高粗利サービスが全体利益率を押し上げる「プラットフォームビジネス」の典型的構造を示している。特にデジタル販売比率の上昇が製造原価を抑制し、粗利益率を業界平均（25%）比で+11.2pt改善させている主因と考えられる。
+
+【利益率の構造分析】営業利益率13.2%（業界平均7%の1.9倍）は優秀だが、最大の注目点は経常利益率21.5%が営業利益率を+8.3pt上回る点にある。この乖離は為替差益・有価証券運用益など営業外収益が2,308億円規模（経常利益2,360億円－営業利益1,452億円）に達していることを意味し、円安環境が業績を大幅に底上げしている。本業の実力を正確に評価するには「営業利益ベース」が適切であり、経常利益の高さは持続可能性に留意が必要。
+
+【コスト効率】減価償却費・労務費データが非開示のため詳細なコスト分解は不可能だが、粗利率から逆算すると販売費及び一般管理費は売上の約23%水準（粗利益率36.2%－営業利益率13.2%=23pt）と推定される。マーケティング投資・開発費が主体であり、IP維持コストとして合理的な水準。
+
+【ROE分析】ROE7.06%は業界平均8%をやや下回る。純利益1,989億円に対し自己資本が大きく（逆算で約2.8兆円超）、財務レバレッジが極めて低い無借金経営が原因。これはリスク耐性の高さを示す一方、資本効率の観点では過剰内部留保（現預金・有価証券）の活用が株主還元・M&amp;A等で求められる局面。</p>
+    
+    <p style="font-size:0.88rem; background:#f0f4ff; padding:12px; border-radius:8px; margin-bottom:20px;">
+      💡 営業利益率13.2%は業界平均の約2倍で本業の実力を証明するが、経常利益率21.5%との乖離（+8.3pt）は為替・運用益への依存を示す。ROE7.06%は財務健全性の裏返しだが、資本効率の観点では改善余地大。成長率が全項目で未計測のため、Switch2サイクルの立ち上がりが今後1〜2年の最大注目点となる。
+    </p>
+    
+    <div class="analysis-section">
+      <div class="sw-box strengths">
+        <h4>✅ 強み</h4>
+        <ul><li>粗利益率36.2%（業界平均比+11.2pt）：ソフト・IPライセンス・デジタル販売主体の高粗利ビジネスモデルにより、競合他社を大きく凌駕するコスト競争力を保持</li><li>経常利益率21.5%の高収益性：潤沢な金融資産の運用益と円安メリットが営業利益に上乗せされ、最終的な収益力が業界最高水準を維持</li><li>ROA5.47%（業界平均4%超）：資産規模に対する収益創出効率が高く、無形資産（IP・ブランド）を収益化する能力が財務指標に明確に反映されている</li></ul>
+      </div>
+      <div class="sw-box weaknesses">
+        <h4>⚠️ 課題</h4>
+        <ul><li>ROE7.06%（業界平均8%を下回る）：自己資本が過大で財務レバレッジが極めて低く、潤沢なキャッシュ・有価証券の活用が不十分。株主資本の稼働効率改善が投資家からの最重要要求事項</li><li>成長率データ不在による評価限界と為替依存リスク：YoY成長率が計測不能なため成長の持続性が不透明。また経常利益が営業利益を+8.3pt上回る構造は円高転換局面で業績の急落リスクを内包しており、本業利益との乖離を注視する必要がある</li></ul>
+      </div>
+    </div>
+    
+  </div>
+  
+  <div class="card">
+    <div class="card-title">📋 キャッシュフロー（CF）分析</div>
+    <p style="margin-bottom:16px;">今回提供された財務データはすべてnullであり、定量的な評価を行うことができません。営業CF・投資CF・財務CF・設備投資額・FCFのいずれも未入力のため、現金創出力および資金繰りの状況について具体的な判断を下すことは困難です。正確な分析を行うには、有価証券報告書またはIR資料から実数値を入力してください。</p>
+    <p style="font-size:0.9rem; margin-bottom:20px; color:var(--muted);">本分析に必要なキャッシュフロー計算書の主要項目（営業活動によるCF・投資活動によるCF・財務活動によるCF・設備投資額・フリーキャッシュフロー）がすべてnullのため、定量的な分析を実施できません。
+
+【参考：任天堂の一般的な財務特性】任天堂は家庭用ゲーム機・ソフトウェアを主力とするファブレス型ビジネスモデルであり、製造を外部委託することで資本集約度が低く、一般的に営業CFマージンが高い傾向にあります。Switch世代では年間5,000億円超の営業CFを継続的に創出し、手元現金・有価証券残高は2兆円規模に達しています。投資CFは自社開発・短期有価証券の運用が中心で、大規模なM&amp;Aは抑制されてきました。財務CFは配当支払いが主体で、自社株買いも実施されています。ただし、これらはあくまで一般的な背景情報であり、本設問の回答としては実数値の入力が不可欠です。</p>
+    
+    <p style="font-size:0.88rem; background:#f0f4ff; padding:12px; border-radius:8px; margin-bottom:20px;">
+      💡 FCF・CF充当率・配当性向のすべてがnullのため、定量コメント不可。業界平均（営業CF/売上高8%・CF充当率20%・配当性向30%）との比較を行うには、有報の連結キャッシュフロー計算書から実数値を取得し、再入力してください。
+    </p>
+    
+    <div class="analysis-section">
+      <div class="sw-box strengths">
+        <h4>✅ 強み</h4>
+        <ul><li>データ未入力のため評価不可（実数値を入力後に再分析が必要）</li><li>任天堂一般論：低CAPEX・高営業CFマージンの構造的優位性が知られているが、当期数値での確認が必要</li></ul>
+      </div>
+      <div class="sw-box weaknesses">
+        <h4>⚠️ 課題</h4>
+        <ul><li>データ未入力のため評価不可</li><li>任天堂一般論：ゲームハードサイクル依存による営業CFの変動リスクが指摘されることがあるが、当期数値での確認が必要</li></ul>
+      </div>
+    </div>
+    
+    <p style="margin-top:16px; font-size:0.88rem;"><strong>CFパターン:</strong> データ未入力のため判定不可。実数値が揃えば、符号パターン（例：営業CF＋／投資CF－／財務CF－）から「成熟安定型」「成長投資型」「資金調達型」等の分類が可能です。</p>
+    
+  </div>
+  
+
+  <!-- リスク一覧 -->
+  <div class="card">
+    <div class="card-title">⚠️ リスク評価</div>
+    <div class="risk-list">
+      
+      <div class="risk-item">
+        <div class="sev sev-high"></div>
+        <div class="body">
+          <div class="category">事業リスク</div>
+          <div class="title">Switch後継機サイクル依存</div>
+          <div class="desc">売上・利益の大部分がSwitchエコシステムに集中。後継機の発売遅延・市場受容失敗は業績に直撃する。過去のWii U失速時に売上・利益が急減した前例があり、ハードウェアサイクルリスクは構造的かつ高い。</div>
+        </div>
+        <span class="risk-badge badge-high" style="flex-shrink:0;">high</span>
+      </div>
+      
+      <div class="risk-item">
+        <div class="sev sev-medium"></div>
+        <div class="body">
+          <div class="category">財務リスク</div>
+          <div class="title">資本効率（ROE）の低水準</div>
+          <div class="desc">ROE7.06%は業界平均8%をやや下回り、1.7兆円超の現金・内部留保が利益成長に還元されていない。過剰流動性が株主価値希薄化につながるリスクがあり、資本政策の明確化が求められる。</div>
+        </div>
+        <span class="risk-badge badge-medium" style="flex-shrink:0;">medium</span>
+      </div>
+      
+      <div class="risk-item">
+        <div class="sev sev-medium"></div>
+        <div class="body">
+          <div class="category">財務リスク</div>
+          <div class="title">Altman Z-Scoreグレーゾーン</div>
+          <div class="desc">Z-Score2.255は安全圏（2.99超）に届かずグレーゾーン。日本型大企業への適用限界はあるが、資産構成の偏り（大量現金保有・製造固定資産の相対的軽量化）が指標を押し下げており、定量モニタリングを要する。</div>
+        </div>
+        <span class="risk-badge badge-medium" style="flex-shrink:0;">medium</span>
+      </div>
+      
+      <div class="risk-item">
+        <div class="sev sev-medium"></div>
+        <div class="body">
+          <div class="category">市場リスク</div>
+          <div class="title">成長率データ不在・成長鈍化懸念</div>
+          <div class="desc">売上高・営業利益・EPS・CAGRすべての成長率指標が未取得。Switch販売台数はピーク期を過ぎ、後継機発表前の踊り場局面にあるとされる。成長トレンドの定量検証なしにはバリュエーション正当性が判断できない。</div>
+        </div>
+        <span class="risk-badge badge-medium" style="flex-shrink:0;">medium</span>
+      </div>
+      
+      <div class="risk-item">
+        <div class="sev sev-medium"></div>
+        <div class="body">
+          <div class="category">外部環境リスク</div>
+          <div class="title">為替・地政学リスク</div>
+          <div class="desc">海外売上比率が高い任天堂は急激な円高で利益圧縮が直撃する。米中貿易摩擦・台湾リスク（半導体供給）も製造コストと供給安定性に影響し、グローバルサプライチェーン脆弱性がある。</div>
+        </div>
+        <span class="risk-badge badge-medium" style="flex-shrink:0;">medium</span>
+      </div>
+      
+      <div class="risk-item">
+        <div class="sev sev-low"></div>
+        <div class="body">
+          <div class="category">財務リスク</div>
+          <div class="title">CF情報未開示・分析制約</div>
+          <div class="desc">営業CF・FCF・設備投資額がすべて未入力のため、実質的な現金創出力と還元余力が外部から検証できない。CF不透明性は機関投資家の評価精度を下げ、株価ボラティリティ要因になり得る。</div>
+        </div>
+        <span class="risk-badge badge-low" style="flex-shrink:0;">low</span>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- 推奨事項 -->
+  <div class="card">
+    <div class="card-title">💡 推奨アクション</div>
+    <div class="rec-list">
+      
+      <div class="rec-item">
+        <div class="rec-num">1</div>
+        <div class="rec-body">
+          <div class="action">Switch後継機の販売動向を最重要KPIとして四半期モニタリング</div>
+          <div class="reason">業績の大部分がハードサイクルに連動しており、発売時期・初速・ソフトラインナップが中期収益を左右する最大変数であるため。</div>
+        </div>
+      </div>
+      
+      <div class="rec-item">
+        <div class="rec-num">2</div>
+        <div class="rec-body">
+          <div class="action">自社株買い・増配・戦略M&amp;Aなど資本政策の明確化を株主総会で確認</div>
+          <div class="reason">ROE7%・現金1.7兆円超の構造は資本効率改善余地が大きく、具体的還元方針の開示が株主価値向上と機関投資家評価に直結するため。</div>
+        </div>
+      </div>
+      
+      <div class="rec-item">
+        <div class="rec-num">3</div>
+        <div class="rec-body">
+          <div class="action">有価証券報告書からCF実数値を取得し分析精度を向上</div>
+          <div class="reason">CF情報が全未入力のため現金創出力・FCFの実態が不明。投資判断の精度を高めるうえで最低限必要なデータが欠落している。</div>
+        </div>
+      </div>
+      
+      <div class="rec-item">
+        <div class="rec-num">4</div>
+        <div class="rec-body">
+          <div class="action">3年CAGRおよびYoY成長率を取得し成長トレンドを定量評価</div>
+          <div class="reason">成長性指標が全不明のままではバリュエーション（PER・PBR）の妥当性検証が困難であり、投資判断の信頼性が著しく低下するため。</div>
+        </div>
+      </div>
+      
+      <div class="rec-item">
+        <div class="rec-num">5</div>
+        <div class="rec-body">
+          <div class="action">為替ヘッジ状況と半導体サプライヤー分散状況をIR資料で確認</div>
+          <div class="reason">海外売上依存度が高く、円高・台湾リスクへの耐性がポートフォリオ管理において重要な外部環境リスクファクターとなるため。</div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- ニュース -->
+  
+
+</div><!-- /container -->
+
+<div class="report-footer">
+  このレポートはAIによる自動生成です。投資判断の最終的な責任はご自身にあります。<br>
+  生成日時: 2026年04月29日 01:37 | Powered by Claude claude-sonnet-4-6
+</div>
+
+<script>
+// Chart.js グラフ描画
+const chartData = {&#34;profitability&#34;: {&#34;labels&#34;: [&#34;売上高総利益率&#34;, &#34;営業利益率&#34;, &#34;経常利益率&#34;, &#34;ROE&#34;, &#34;ROA&#34;], &#34;values&#34;: [36.24, 13.2, 21.47, 7.06, 5.47], &#34;avg&#34;: [25.0, 7.0, 6.0, 8.0, 4.0]}, &#34;safety&#34;: {&#34;labels&#34;: [&#34;自己資本比率&#34;, &#34;流動比率&#34;, &#34;当座比率&#34;], &#34;values&#34;: [77.51, 399.79, 255.18], &#34;colors&#34;: [&#34;#27ae60&#34;, &#34;#27ae60&#34;, &#34;#27ae60&#34;]}};
+
+// 収益性レーダーチャート
+if (document.getElementById('chartProfitability')) {
+  new Chart(document.getElementById('chartProfitability'), {
+    type: 'radar',
+    data: {
+      labels: chartData.profitability.labels,
+      datasets: [{
+        label: '当社',
+        data: chartData.profitability.values,
+        backgroundColor: 'rgba(26,60,110,0.15)',
+        borderColor: 'rgba(26,60,110,0.8)',
+        pointBackgroundColor: 'rgba(26,60,110,1)',
+      }, {
+        label: '業界平均',
+        data: chartData.profitability.avg,
+        backgroundColor: 'rgba(232,74,47,0.1)',
+        borderColor: 'rgba(232,74,47,0.6)',
+        borderDash: [5,5],
+        pointBackgroundColor: 'rgba(232,74,47,0.8)',
+      }]
+    },
+    options: { scales: { r: { beginAtZero: true } }, plugins: { legend: { position: 'bottom' } } }
+  });
+}
+
+// 安全性バーチャート
+if (document.getElementById('chartSafety')) {
+  new Chart(document.getElementById('chartSafety'), {
+    type: 'bar',
+    data: {
+      labels: chartData.safety.labels,
+      datasets: [{
+        label: '当社',
+        data: chartData.safety.values,
+        backgroundColor: chartData.safety.colors,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true } }
+    }
+  });
+}
+</script>
+</body>
+</html>
