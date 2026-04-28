@@ -1,0 +1,38 @@
+{
+  "version": "0.1.0",
+  "id": "d05a70df-1c64-4efe-ad52-4f7976e91336",
+  "timestamp": "2026-04-28T16:46:40.786Z",
+  "files": [
+    {
+      "path": "agents/financial_agents.py",
+      "conversations": [
+        {
+          "contributor_type": "ai",
+          "model": "anthropic/claude-opus-4-5-20251101",
+          "ranges": [
+            {
+              "start_line": 1,
+              "end_line": -1
+            }
+          ],
+          "description": "Edit: text replacement"
+        }
+      ]
+    }
+  ],
+  "tool": {
+    "name": "taisun-agent",
+    "version": "2.10.1"
+  },
+  "metadata": {
+    "dev.taisun": {
+      "hook": "agent-trace-capture",
+      "tool_used": "Edit"
+    }
+  },
+  "vcs": {
+    "type": "git",
+    "commit": "1823c5b671d7bae7cad1f63ca0ec705ee00a411e",
+    "branch": "main"
+  }
+}

@@ -1,9 +1,13 @@
 import asyncio
-import base64
-import subprocess
-import tempfile
+import io
 import os
+import subprocess
 from typing import Optional
+
+
+def _use_api() -> bool:
+    """ANTHROPIC_API_KEY があればAPI、なければCLIを使う"""
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
 
 
 async def call_claude(
@@ -12,11 +16,51 @@ async def call_claude(
     pdf_bytes: Optional[bytes] = None,
     max_tokens: int = 4096,
 ) -> str:
+    if _use_api():
+        return await _call_via_api(prompt, system, pdf_bytes, max_tokens)
+    else:
+        return await _call_via_cli(prompt, system, pdf_bytes)
+
+
+async def _call_via_api(
+    prompt: str,
+    system: str,
+    pdf_bytes: Optional[bytes],
+    max_tokens: int,
+) -> str:
+    import anthropic, base64
+    client = anthropic.AsyncAnthropic()
+    content: list = []
+    if pdf_bytes:
+        content.append({
+            "type": "document",
+            "source": {
+                "type": "base64",
+                "media_type": "application/pdf",
+                "data": base64.standard_b64encode(pdf_bytes).decode(),
+            },
+        })
+    content.append({"type": "text", "text": prompt})
+    kwargs = {
+        "model": "claude-sonnet-4-6",
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": content}],
+    }
+    if system:
+        kwargs["system"] = system
+    resp = await client.messages.create(**kwargs)
+    return resp.content[0].text
+
+
+async def _call_via_cli(
+    prompt: str,
+    system: str,
+    pdf_bytes: Optional[bytes],
+) -> str:
     full_prompt = f"{system}\n\n{prompt}" if system else prompt
 
     if pdf_bytes:
-        # PDFを一時ファイルに書き出してpdfplumberでテキスト化してから渡す
-        import pdfplumber, io
+        import pdfplumber
         text_parts = []
         try:
             with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
@@ -33,10 +77,7 @@ async def call_claude(
         raw_text = "\n".join(text_parts)[:30000]
         full_prompt = f"{full_prompt}\n\n--- PDF抽出テキスト ---\n{raw_text}"
 
-    result = await asyncio.to_thread(
-        _run_claude_cli, full_prompt
-    )
-    return result
+    return await asyncio.to_thread(_run_claude_cli, full_prompt)
 
 
 def _run_claude_cli(prompt: str) -> str:
